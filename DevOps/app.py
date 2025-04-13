@@ -1,13 +1,12 @@
-from flask import Flask
+import http.server
+import socketserver
 
-app = Flask(__name__)
+PORT = 5000
 
+Handler = http.server.SimpleHTTPRequestHandler
 
-@app.route("/")
-def home():
-    return "Hello from simple_math app!"
+print("Starting basic HTTP server for Heroku health check...")
 
-
-@app.route("/health")
-def health():
-    return "OK", 200
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    print(f"Serving at port {PORT}")
+    httpd.serve_forever()
