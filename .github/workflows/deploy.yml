@@ -9,22 +9,18 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.13"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-
       - name: Run unit tests
         run: |
           python -m unittest discover -s DevOps/Tests -t DevOps/Tests
@@ -32,52 +28,35 @@ jobs:
   deploy-to-staging:
     needs: build-and-test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: Deploy to Heroku Staging
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
-          # Install Heroku CLI
           curl https://cli-assets.heroku.com/install.sh | sh
-          # Set API key
           export HEROKU_API_KEY=${{ secrets.HEROKU_API_KEY }}
-          # Use consistent app name (update if different)
-          heroku apps:info --app my-ci-app-staging || heroku create my-ci-app-staging
-          # Add Heroku remote and push code
-          git remote add staging https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/my-ci-app-staging.git
           git push staging main --force
-          # Skip buildpack set if already set
-          heroku buildpacks --app my-ci-app-staging | grep -q heroku/python || heroku buildpacks:set heroku/python --app my-ci-app-staging
-          # Scale web dyno
           heroku ps:scale web=1 --app my-ci-app-staging
-          # Wait for dyno to start
           sleep 10
-          # Check dyno status
           heroku ps --app my-ci-app-staging
-          # Output logs for debugging
           heroku logs --app my-ci-app-staging --num 50
 
   verify-staging:
     needs: deploy-to-staging
     runs-on: ubuntu-latest
-
     steps:
       - name: Health check on Staging
         run: |
-          # Use the correct URL based on actual app name
-          curl -f https://my-ci-app-staging-4606e0f8f0b8.herokuapp.com/health || exit 1
+          curl -f https://my-ci-app-staging.herokuapp.com/health || exit 1
           echo "Health check passed"
 
   promote-to-production:
     needs: verify-staging
     runs-on: ubuntu-latest
-
     steps:
       - name: Promote to Production
         env:
