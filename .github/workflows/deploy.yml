@@ -52,7 +52,7 @@ jobs:
 
     steps:
       - name: Health check on Staging
-        run: curl -f https://my-ci-app-staging.herokuapp.com/ || exit 1
+        run: curl -f https://my-ci-app-staging.herokuapp.com/health || exit 1
 
   promote-to-production:
     needs: verify-staging
