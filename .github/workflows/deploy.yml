@@ -26,23 +26,30 @@ jobs:
           python -m unittest discover -s DevOps/Tests -t DevOps/Tests
 
   deploy-to-staging:
-    needs: build-and-test
+    needs: build-and-test # Adjust this based on your workflow
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Ensures full history is available for git push
       - name: Deploy to Heroku Staging
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
+          # Install Heroku CLI
           curl https://cli-assets.heroku.com/install.sh | sh
-          export HEROKU_API_KEY=${{ secrets.HEROKU_API_KEY }}
+          # Add the staging remote for your Heroku app
+          git remote add staging https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/my-ci-app-staging.git
+          # Push to staging
           git push staging main --force
+          # Scale the web dyno (optional, adjust as needed)
           heroku ps:scale web=1 --app my-ci-app-staging
+          # Wait for the app to start
           sleep 10
+          # Check dyno status
           heroku ps --app my-ci-app-staging
+          # View recent logs
           heroku logs --app my-ci-app-staging --num 50
 
   verify-staging:
