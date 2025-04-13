@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Allows manual triggering for rollback or testing
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # Full clone to avoid Heroku shallow push issue
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -43,12 +43,25 @@ jobs:
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
+          # Install Heroku CLI
+          curl https://cli-assets.heroku.com/install.sh | sh
+          # Log in to Heroku (for CLI commands)
+          echo "$HEROKU_API_KEY" | heroku login --ci
+          # Create app if it doesn’t exist
+          heroku apps:info my-ci-app-staging || heroku create my-ci-app-staging
           # Add Heroku remote and push code
           git remote add staging https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/my-ci-app-staging.git
           git push staging main --force
-          # Install Heroku CLI and scale web dyno to ensure app starts
-          curl https://cli-assets.heroku.com/install.sh | sh
+          # Set Python buildpack (ensure it’s detected as a Python app)
+          heroku buildpacks:set heroku/python --app my-ci-app-staging
+          # Scale web dyno
           heroku ps:scale web=1 --app my-ci-app-staging
+          # Wait for dyno to start
+          sleep 10
+          # Check dyno status
+          heroku ps --app my-ci-app-staging
+          # Output logs for debugging
+          heroku logs --app my-ci-app-staging --num 50
 
   verify-staging:
     needs: deploy-to-staging
@@ -56,7 +69,9 @@ jobs:
 
     steps:
       - name: Health check on Staging
-        run: curl -f https://my-ci-app-staging.herokuapp.com/health || exit 1
+        run: |
+          curl -f https://my-ci-app-staging.herokuapp.com/health || exit 1
+          echo "Health check passed"
 
   promote-to-production:
     needs: verify-staging
@@ -67,4 +82,4 @@ jobs:
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
-          heroku pipelines:promote --app my-ci-app-staging
+          heroku pipelines:promote --app my-ci-app-staging --to my-ci-app-production --wait
