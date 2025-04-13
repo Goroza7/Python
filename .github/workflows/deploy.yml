@@ -43,8 +43,12 @@ jobs:
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
+          # Add Heroku remote and push code
           git remote add staging https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/my-ci-app-staging.git
           git push staging main --force
+          # Install Heroku CLI and scale web dyno to ensure app starts
+          curl https://cli-assets.heroku.com/install.sh | sh
+          heroku ps:scale web=1 --app my-ci-app-staging
 
   verify-staging:
     needs: deploy-to-staging
