@@ -9,7 +9,7 @@ class TestMathFunctions(unittest.TestCase):
         self.assertEqual(add(0, 0), 0)
 
     def test_subtract(self):
-        self.assertEqual(subtract(10, 5), 5)
+        self.assertEqual(subtract(11, 5), 6)
         self.assertEqual(subtract(5, 10), -5)
 
     def test_multiply(self):
