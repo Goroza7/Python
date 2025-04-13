@@ -45,14 +45,14 @@ jobs:
         run: |
           # Install Heroku CLI
           curl https://cli-assets.heroku.com/install.sh | sh
-          # Log in to Heroku (for CLI commands)
-          echo "$HEROKU_API_KEY" | heroku login --ci
+          # Set API key as environment variable (no need for heroku login)
+          export HEROKU_API_KEY=${{ secrets.HEROKU_API_KEY }}
           # Create app if it doesn’t exist
-          heroku apps:info my-ci-app-staging || heroku create my-ci-app-staging
+          heroku apps:info --app my-ci-app-staging || heroku create my-ci-app-staging
           # Add Heroku remote and push code
           git remote add staging https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/my-ci-app-staging.git
           git push staging main --force
-          # Set Python buildpack (ensure it’s detected as a Python app)
+          # Set Python buildpack
           heroku buildpacks:set heroku/python --app my-ci-app-staging
           # Scale web dyno
           heroku ps:scale web=1 --app my-ci-app-staging
@@ -82,4 +82,4 @@ jobs:
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
-          heroku pipelines:promote --app my-ci-app-staging --to my-ci-app-production --wait
+          heroku pipelines:promote --app my-ci-app-staging
