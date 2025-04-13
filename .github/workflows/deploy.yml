@@ -1,19 +1,20 @@
-name: Deploy to Heroku
+name: Canary Deploy to Heroku
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allows manual triggering for rollback or testing
 
 jobs:
-  deploy:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # Prevents shallow clone
+          fetch-depth: 0 # Full clone to avoid Heroku shallow push issue
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -28,9 +29,38 @@ jobs:
         run: |
           python -m unittest discover -s DevOps/Tests -t DevOps/Tests
 
-      - name: Deploy to Heroku
+  deploy-to-staging:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Deploy to Heroku Staging
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
-          git remote add heroku https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/my-ci-app.git
-          git push heroku main --force
+          git remote add staging https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/my-ci-app-staging.git
+          git push staging main --force
+
+  verify-staging:
+    needs: deploy-to-staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Health check on Staging
+        run: curl -f https://my-ci-app-staging.herokuapp.com/ || exit 1
+
+  promote-to-production:
+    needs: verify-staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Promote to Production
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          heroku pipelines:promote --app my-ci-app-staging
