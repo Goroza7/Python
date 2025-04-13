@@ -1,5 +1,5 @@
 import unittest
-from DevOps.simple_math import add, subtract, multiply, divide
+from simple_math import add, subtract, multiply, divide
 
 
 class TestMathFunctions(unittest.TestCase):
